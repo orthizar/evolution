@@ -6,6 +6,10 @@ from datetime import datetime
 import json
 import pygame
 from collections import Counter
+import cv2
+import os
+import numpy as np
+import copy
 
 env = None
 step = 0
@@ -17,9 +21,10 @@ food_per_step = 50
 
 pygame.init()
 
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 1000
-screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT], pygame.RESIZABLE)
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
+screen = pygame.display.set_mode(
+    [SCREEN_WIDTH, SCREEN_HEIGHT], pygame.DOUBLEBUF)
 
 pygame.display.set_caption('evolution')
 
@@ -81,7 +86,7 @@ def draw_food(screen):
 
 def draw_entities(screen):
     for entity in env.entities:
-        pygame.draw.circle(screen, (255,255,255),
+        pygame.draw.circle(screen, (255, 255, 255),
                            entity.position, math.log2(entity.lifetime if entity.lifetime != 0 else 4)+3)
         pygame.draw.circle(screen, entity.color,
                            entity.position, math.log2(entity.lifetime if entity.lifetime != 0 else 4)+2)
@@ -96,45 +101,64 @@ def draw_information(screen, text_array):
 if __name__ == '__main__':
     if len(sys.argv) >= 2:
         save_path = sys.argv[1]
+        video_path = f"videos/{os.path.basename(sys.argv[1]).split('.')[0]}.mp4"
         env = load_save(save_path)
     else:
         save_path = f"saves/{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.json"
+        video_path = f"videos/{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.mp4"
         env = create_env()
     neurons = sum(map(lambda x: len(x.neurons), env.entities))
     axons = sum(
         map(lambda x: sum(map(lambda y: len(y.axons), x.neurons)), env.entities))
     generations = list(f" Gen {generation}: {number}" for generation, number in Counter(
         [d.generation for d in env.entities]).items())
-
+    frames = []
+    old_video = cv2.VideoCapture(video_path)
+    while (old_video.isOpened()):
+        ret, frame = old_video.read()
+        if ret == True:
+            frames.append(frame)
+        else:
+            break
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    videowriter = cv2.VideoWriter(video_path, fourcc, 24, env.size)
+    for frame in frames:
+        videowriter.write(frame)
+    del frames
     while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-        env.size = pygame.display.get_surface().get_size()
-        env.step()
-        step += 1
-        screen.fill((22, 22, 22))
-        draw_food(screen)
-        draw_entities(screen)
-        draw_information(screen, [
-            f"Savepath: {save_path}",
-            f"Step: {step}",
-            f"Entities: {len(env.entities)}",
-            f"Food: {len(env.food)}",
-            f"Neurons: {neurons}",
-            f"Axons: {axons}",
-            f"Generations:",
-            *generations
-        ])
-        pygame.display.flip()
-        if step % 10 == 0:
-            neurons = sum(map(lambda x: len(x.neurons), env.entities))
-            axons = sum(
-                map(lambda x: sum(map(lambda y: len(y.axons), x.neurons)), env.entities))
-            generations = list(f" Gen {generation}: {number}" for generation, number in Counter(
-                [d.generation for d in env.entities]).items())
-        if step % 100 == 0:
-            dump_save(save_path)
-        clock.tick(60)
+        try:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+            env.size = pygame.display.get_surface().get_size()
+            env.step()
+            step += 1
+            screen.fill((22, 22, 22))
+            draw_food(screen)
+            draw_entities(screen)
+            draw_information(screen, [
+                f"Savepath: {save_path}",
+                f"Step: {step}",
+                f"Entities: {len(env.entities)}",
+                f"Food: {len(env.food)}",
+                f"Neurons: {neurons}",
+                f"Axons: {axons}",
+                f"Generations:",
+                *generations
+            ])
+            pygame.display.flip()
+            if step % 10 == 0:
+                neurons = sum(map(lambda x: len(x.neurons), env.entities))
+                axons = sum(
+                    map(lambda x: sum(map(lambda y: len(y.axons), x.neurons)), env.entities))
+                generations = list(f" Gen {generation}: {number}" for generation, number in Counter(
+                    [d.generation for d in env.entities]).items())
+            videowriter.write(pygame.surfarray.pixels3d(screen).swapaxes(1, 0).copy())
+            if step % 100 == 0:
+                dump_save(save_path)
+            clock.tick(60)
+        except:
+            break
     dump_save(save_path)
+    videowriter.release()
     pygame.quit()
