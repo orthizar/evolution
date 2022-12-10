@@ -11,9 +11,9 @@ env = None
 step = 0
 
 entities = 50
-mutation_rate = 10
+mutation_rate = 25
 initial_food = 400
-food_per_step = 30
+food_per_step = 50
 
 pygame.init()
 
@@ -82,7 +82,7 @@ def draw_food(screen):
 def draw_entities(screen):
     for entity in env.entities:
         pygame.draw.circle(screen, entity.color,
-                           entity.position, math.log2(entity.lifetime)+2)
+                           entity.position, math.log2(entity.lifetime if entity.lifetime != 0 else 4)+2)
 
 
 def draw_information(screen, text_array):
@@ -99,9 +99,11 @@ if __name__ == '__main__':
         save_path = f"saves/{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.json"
         env = create_env()
     neurons = sum(map(lambda x: len(x.neurons), env.entities))
-    axons = sum(map(lambda x: sum(map(lambda y: len(y.axons), x.neurons)), env.entities))
-    generations = list(f" Gen {generation}: {number}" for generation, number in Counter([d.generation for d in env.entities]).items())
-    
+    axons = sum(
+        map(lambda x: sum(map(lambda y: len(y.axons), x.neurons)), env.entities))
+    generations = list(f" Gen {generation}: {number}" for generation, number in Counter(
+        [d.generation for d in env.entities]).items())
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -122,10 +124,13 @@ if __name__ == '__main__':
             *generations
         ])
         pygame.display.flip()
-        if step % 100 == 0:
+        if step % 10 == 0:
             neurons = sum(map(lambda x: len(x.neurons), env.entities))
-            axons = sum(map(lambda x: sum(map(lambda y: len(y.axons), x.neurons)), env.entities))
-            generations = list(f" Gen {generation}: {number}" for generation, number in Counter([d.generation for d in env.entities]).items())
+            axons = sum(
+                map(lambda x: sum(map(lambda y: len(y.axons), x.neurons)), env.entities))
+            generations = list(f" Gen {generation}: {number}" for generation, number in Counter(
+                [d.generation for d in env.entities]).items())
+        if step % 100 == 0:
             dump_save(save_path)
         clock.tick(60)
     dump_save(save_path)

@@ -14,6 +14,7 @@ class Environment:
         self.ray_steps = ray_steps
         self.mutation_rate = mutation_rate
         self.food_per_step = food_per_step
+
     def cast(self, start, angle, ray_range) -> Union[None, float]:
         ray_position = start
         last_distance = math.inf
@@ -31,22 +32,41 @@ class Environment:
                 ray_position = (ray_position[0]+(math.cos(angle)*min_distance/2),
                                 ray_position[1]+(math.sin(angle)*min_distance/2))
         return math.inf
+
+    def update_entity(self, entity):
+        if entity.hunger >= 100:
+            self.entities.remove(entity)
+            del entity
+            return
+        for sensor in entity.sensors:
+            sensor.update()
+        entity.update(self)
+        # print(entity.color, entity.lifetime, entity.food, entity.hunger, entity.position)
+        if entity.food >= 2:
+            #print("Cloning entity")
+            entity.food = 0
+            dna = mutate_dna(entity.data, self.mutation_rate)
+            self.entities.append(Entity(
+                dna=dna, environment=self, position=entity.position, generation=entity.generation+1))
+
     def step(self):
-        if len(self.food) < 100:
+        if len(self.food) < self.food_per_step:
             for _ in range(self.food_per_step):
                 self.food.append(
                     Food((random.random()*self.size[0], random.random()*self.size[1])))
+        dna = generate_dna(64, 64)
+        self.entities.append(
+            Entity(dna, self, (random.random()*self.size[0], random.random()*self.size[1])))
+        threads = []
         for entity in self.entities:
-            if entity.hunger >= 100:
-                self.entities.remove(entity)
-                del entity
-                continue
-            for sensor in entity.sensors:
-                sensor.update()
-            entity.update(self)
-            # print(entity.color, entity.lifetime, entity.food, entity.hunger, entity.position)
-            if entity.food >= 2:
-                #print("Cloning entity")
-                entity.food = 0
-                dna = mutate_dna(entity.data, self.mutation_rate)
-                self.entities.append(Entity(dna=dna, environment=self, position=entity.position, generation=entity.generation+1))
+            thread = threading.Thread(
+                target=self.update_entity, args=(entity,))
+            threads.append(thread)
+
+        # Start each thread
+        for thread in threads:
+            thread.start()
+
+        # Wait for all threads to finish
+        for thread in threads:
+            thread.join()

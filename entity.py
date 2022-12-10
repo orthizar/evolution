@@ -1,5 +1,6 @@
 import math
 import random
+import threading
 
 # the two strands of dna consist of dna which are composed of one of four nucleobases.
 # the four types of nucleobases:
@@ -198,7 +199,7 @@ def mutate_dna(data, rate) -> str:
                         16 + get_random_n_bit_uint(16)
             else:
                 if axon['target_type'] == 'sensory':
-                    nucleotide_chain += '10010110'+'10'*16 
+                    nucleotide_chain += '10010110'+'10'*16
                 elif axon['target_type'] == 'interneuron':
                     nucleotide_chain += '10010111'+'10'*16
                 if random.randint(rate, 100) == 100:
@@ -240,7 +241,9 @@ class Sensor:
         self._output = 0
 
     def update(self):
-        self._output = relu(1-(self.entity.environment.cast(self.entity.position, self.angle, self.range)/(self.range)))
+        self._output = relu(
+            1-(self.entity.environment.cast(self.entity.position, self.angle, self.range)/(self.range)))
+
     @property
     def output(self):
         return self._output
