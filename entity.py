@@ -1,6 +1,5 @@
 import math
 import random
-import threading
 
 # the two strands of dna consist of dna which are composed of one of four nucleobases.
 # the four types of nucleobases:
