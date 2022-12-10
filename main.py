@@ -11,7 +11,7 @@ env = None
 step = 0
 
 entities = 50
-mutation_rate = 25
+mutation_rate = 10
 initial_food = 400
 food_per_step = 50
 
@@ -19,7 +19,7 @@ pygame.init()
 
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 1000
-screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
+screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT], pygame.RESIZABLE)
 
 pygame.display.set_caption('evolution')
 
@@ -53,8 +53,8 @@ def dump_save(save_path):
             'ray_steps': env.ray_steps,
             'entities': list(map(lambda x: {'dna': x.dna, 'position': x.position, 'lifetime': x.lifetime, 'generation': x.generation, 'hunger': x.hunger}, env.entities)),
             'food': list(map(lambda x: {'position': x.position, 'radius': x.radius}, env.food)),
-            'mutation_rate': mutation_rate,
-            'food_per_step': food_per_step,
+            'mutation_rate': env.mutation_rate,
+            'food_per_step': env.food_per_step,
         }
     }
     with open(save_path, 'w') as savefile:
@@ -62,7 +62,7 @@ def dump_save(save_path):
 
 
 def create_env():
-    env = Environment(size=(1000, 1000), entities=[],
+    env = Environment(size=pygame.display.get_surface().get_size(), entities=[],
                       food=[], ray_stop=0.1, ray_steps=10, mutation_rate=mutation_rate, food_per_step=food_per_step)
     for _ in range(entities):
         dna = generate_dna(64, 64)
@@ -81,13 +81,15 @@ def draw_food(screen):
 
 def draw_entities(screen):
     for entity in env.entities:
+        pygame.draw.circle(screen, (255,255,255),
+                           entity.position, math.log2(entity.lifetime if entity.lifetime != 0 else 4)+3)
         pygame.draw.circle(screen, entity.color,
                            entity.position, math.log2(entity.lifetime if entity.lifetime != 0 else 4)+2)
 
 
 def draw_information(screen, text_array):
     for i, text in enumerate(text_array):
-        text_surface = font.render(text, True, (0, 0, 0))
+        text_surface = font.render(text, True, (255, 255, 255))
         screen.blit(text_surface, (0, i*12))
 
 
@@ -108,9 +110,10 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+        env.size = pygame.display.get_surface().get_size()
         env.step()
         step += 1
-        screen.fill((255, 255, 255))
+        screen.fill((22, 22, 22))
         draw_food(screen)
         draw_entities(screen)
         draw_information(screen, [
