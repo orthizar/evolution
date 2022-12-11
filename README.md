@@ -12,11 +12,11 @@ Overall, the code is a simplified and abstracted representation of a biological 
 ### Clone
 Clone this repository:
 ```
-https://github.com/orthizar/evolution.git
+git clone https://github.com/orthizar/evolution.git
 ```
 Or via SSH:
 ```
-git@github.com:orthizar/evolution.git
+git clone git@github.com:orthizar/evolution.git
 ```
 Or via Github CLI:
 ```
