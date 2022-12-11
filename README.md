@@ -24,7 +24,7 @@ gh repo clone orthizar/evolution
 ```
 ### Install dependencies
 ```
-pip3 install numpy pygame opencv
+pip install numpy pygame opencv
 ```
 
 ## Usage
