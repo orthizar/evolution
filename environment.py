@@ -55,9 +55,10 @@ class Environment:
             for _ in range(self.food_per_step):
                 self.food.append(
                     Food((random.random()*self.size[0], random.random()*self.size[1])))
-        dna = generate_dna(64, 64)
-        self.entities.append(
-            Entity(dna, self, (random.random()*self.size[0], random.random()*self.size[1])))
+        if len(self.entities) < 1:
+            dna = generate_dna(512, 128)
+            self.entities.append(
+                Entity(dna, self, (random.random()*self.size[0], random.random()*self.size[1])))
         threads = []
         for entity in self.entities:
             thread = threading.Thread(

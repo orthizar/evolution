@@ -1,5 +1,7 @@
 import math
 import random
+import threading
+import numpy as np
 
 # the two strands of dna consist of dna which are composed of one of four nucleobases.
 # the four types of nucleobases:
@@ -31,6 +33,9 @@ import random
 # 10010110 (AGGA) + '10'*16  + 16 bit uint (index): sensory target of axon where index of sensor = index
 # 10010111 (AGCC) + '10'*16  + 16 bit uint (index): interneuron target of axon where neuron index in dna = index, ignored when sensory target already defined
 
+number_of_threads = 64
+sequences = []
+
 
 def sigmoid(x) -> float:
     return 1 / (1 + math.exp(-x))
@@ -49,27 +54,50 @@ def uint_to_bits(x: int, n: int) -> str:
     return '{0:0{n}b}'.format(x, n=n)
 
 
+def generate_neuron(number_of_axons):
+    nucleotide_chain = '10'*32  # start sequence of neuron
+    nucleotide_chain += '10000000'+'10'*16 + get_random_n_bit_uint(16)
+    for _ in range(number_of_axons):  # start sequence of axon
+        nucleotide_chain += '10000100'+'10'*16
+        nucleotide_chain += '10010100'+'10' * \
+            16 + get_random_n_bit_uint(16)
+        if random.randint(0, 1):  # sensory target
+            nucleotide_chain += '10010110'+'10' * \
+                16 + get_random_n_bit_uint(16)
+        else:  # interneuron target
+            nucleotide_chain += '10010111'+'10' * \
+                16 + get_random_n_bit_uint(16)
+    return nucleotide_chain
+
+def generate_n_neurons(index, number_of_axons, number_of_neurons):
+    for x in range(number_of_neurons):
+        # print(f"{index:04}", (x/number_of_neurons)*100, '%')
+        sequences[index] += generate_neuron(number_of_axons)
+
 def generate_dna(number_of_neurons, number_of_axons) -> str:
+    global sequences
     nucleotide_chain = ''
     # color
     nucleotide_chain += '11000000'+'10'*16 + \
         get_random_n_bit_uint(8) + get_random_n_bit_uint(8) + \
         get_random_n_bit_uint(8)
-    for _ in range(number_of_neurons):
-        # print(x/number_of_neurons*100, '%')
-        nucleotide_chain += '10'*32  # start sequence of neuron
-        nucleotide_chain += '10000000'+'10'*16 + get_random_n_bit_uint(16)
-        for _ in range(number_of_axons):
-            if random.randint(0, 1):  # start sequence of axon
-                nucleotide_chain += '10000100'+'10'*16
-                nucleotide_chain += '10010100'+'10' * \
-                    16 + get_random_n_bit_uint(16)
-                if random.randint(0, 1):  # sensory target
-                    nucleotide_chain += '10010110'+'10' * \
-                        16 + get_random_n_bit_uint(16)
-                else:  # interneuron target
-                    nucleotide_chain += '10010111'+'10' * \
-                        16 + get_random_n_bit_uint(16)
+    sequences = ['']*number_of_threads
+    threads = []
+    threads_needed = number_of_threads if number_of_threads < number_of_neurons else number_of_neurons
+    for x in range(threads_needed):
+        thread = threading.Thread(
+            target=generate_n_neurons, args=(x, number_of_axons, number_of_neurons//threads_needed))
+        threads.append(thread)
+
+        # Start each thread
+    for thread in threads:
+        thread.start()
+
+        # Wait for all threads to finish
+    for thread in threads:
+        thread.join()
+    for sequence in sequences:
+        nucleotide_chain += sequence
     return nucleotide_chain
 
 
@@ -167,44 +195,68 @@ def decode_dna(dna) -> dict:
     return data
 
 
+def mutate_neuron(neuron, rate):
+    nucleotide_chain = '10'*32
+    if random.randint(rate, 100) == 100:
+        nucleotide_chain += '10000000'+'10'*16 + \
+            get_random_n_bit_uint(16)
+    else:
+        nucleotide_chain += '10000000'+'10'*16 + \
+            uint_to_bits(int(neuron['bias']*(2**16)), 16)
+    for axon in neuron['axons']:
+        nucleotide_chain += '10000100'+'10'*16
+        if random.randint(rate, 100) == 100:
+            nucleotide_chain += '10010100'+'10'*16 + \
+                get_random_n_bit_uint(16)
+        else:
+            nucleotide_chain += '10010100'+'10'*16 + \
+                uint_to_bits(int(((axon['weight']+1)/2)*(2**16)), 16)
+        if random.randint(rate, 100) == 100:
+            if random.randint(0, 1):  # sensory target
+                nucleotide_chain += '10010110'+'10' * \
+                    16 + get_random_n_bit_uint(16)
+            else:  # interneuron target
+                nucleotide_chain += '10010111'+'10' * \
+                    16 + get_random_n_bit_uint(16)
+        else:
+            if axon['target_type'] == 'sensory':
+                nucleotide_chain += '10010110'+'10'*16
+            elif axon['target_type'] == 'interneuron':
+                nucleotide_chain += '10010111'+'10'*16
+            if random.randint(rate, 100) == 100:
+                nucleotide_chain += get_random_n_bit_uint(16)
+            else:
+                nucleotide_chain += uint_to_bits(axon['target_index'], 16)
+    return nucleotide_chain
+
+def mutate_n_neurons(index, neurons, rate):
+    # number_of_neurons = len(neurons)
+    for neuron in neurons:
+        # print(f"{index:04}", (x/number_of_neurons)*100, '%')
+        sequences[index] += mutate_neuron(neuron, rate)
 def mutate_dna(data, rate) -> str:
+    global sequences
     # data = decode_dna(dna)
     nucleotide_chain = ''
     nucleotide_chain += '11000000'+'10'*16 + \
         uint_to_bits(data['color'][0], 8) + uint_to_bits(data['color']
                                                          [1], 8) + uint_to_bits(data['color'][2], 8)
-    for neuron in data['neurons']:
-        nucleotide_chain += '10'*32
-        if random.randint(rate, 100) == 100:
-            nucleotide_chain += '10000000'+'10'*16 + \
-                get_random_n_bit_uint(16)
-        else:
-            nucleotide_chain += '10000000'+'10'*16 + \
-                uint_to_bits(int(neuron['bias']*(2**16)), 16)
-        for axon in neuron['axons']:
-            nucleotide_chain += '10000100'+'10'*16
-            if random.randint(rate, 100) == 100:
-                nucleotide_chain += '10010100'+'10'*16 + \
-                    get_random_n_bit_uint(16)
-            else:
-                nucleotide_chain += '10010100'+'10'*16 + \
-                    uint_to_bits(int(((axon['weight']+1)/2)*(2**16)), 16)
-            if random.randint(rate, 100) == 100:
-                if random.randint(0, 1):  # sensory target
-                    nucleotide_chain += '10010110'+'10' * \
-                        16 + get_random_n_bit_uint(16)
-                else:  # interneuron target
-                    nucleotide_chain += '10010111'+'10' * \
-                        16 + get_random_n_bit_uint(16)
-            else:
-                if axon['target_type'] == 'sensory':
-                    nucleotide_chain += '10010110'+'10'*16
-                elif axon['target_type'] == 'interneuron':
-                    nucleotide_chain += '10010111'+'10'*16
-                if random.randint(rate, 100) == 100:
-                    nucleotide_chain += get_random_n_bit_uint(16)
-                else:
-                    nucleotide_chain += uint_to_bits(axon['target_index'], 16)
+    sequences = ['']*number_of_threads
+    threads = []
+    number_of_neurons = len(data['neurons'])
+    threads_needed = number_of_threads if number_of_threads < number_of_neurons else number_of_neurons
+    split_neurons = np.array_split(data['neurons'],threads_needed)
+    for x in range(threads_needed):
+        thread = threading.Thread(
+            target=mutate_n_neurons, args=(x, split_neurons[x], rate))
+        threads.append(thread)
+
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    for sequence in sequences:
+        nucleotide_chain += sequence
     return nucleotide_chain
 
 
@@ -281,9 +333,19 @@ class Entity:
     def update(self, environment) -> None:
         self.lifetime += 1
         self.hunger += 1
+        threads = []
         for neuron in self.neurons:
-            neuron.update(self.neurons, self.sensors)
-            # print(neuron.output)
+            thread = threading.Thread(
+                target=neuron.update, args=(self.neurons, self.sensors,))
+            threads.append(thread)
+
+        # Start each thread
+        for thread in threads:
+            thread.start()
+
+        # Wait for all threads to finish
+        for thread in threads:
+            thread.join()
         speed = self.neurons[0].output*10
         direction = self.neurons[1].output*2*math.pi
         self.position = ((self.position[0] + speed*math.sin(direction)) % environment.size[0],
@@ -303,24 +365,34 @@ def convert_to_bits(num) -> str:
 
 
 if __name__ == '__main__':
-    dna = generate_dna(64, 64)
+    dna = generate_dna(512, 256)
     # print(dna[:8+32+24])
-    # print(len(dna))
-    # nucleobases = ('C', 'G', 'A', 'T')
-    # print(''.join(nucleobases[int(dna[x*2:x*2+2],2)] for x in range(len(dna)//2)))
+    print('dna sequencing started')
+    data = decode_dna(dna)
+    print('dna sequencing finished')
+    print(len(dna))
+    print(len(data['neurons']))
+    print(sum(map(lambda x: len(x['axons']), data['neurons'])))
+    print('dna mutating started')
+    mutated_dna = mutate_dna(decode_dna(dna), 10)
+    print('dna mutating finished')
+    print('dna sequencing started')
+    data = decode_dna(mutated_dna)
+    print('dna sequencing finished')
+    print(len(dna))
+    print(len(data['neurons']))
+    print(sum(map(lambda x: len(x['axons']), data['neurons'])))
+    #nucleobases = ('C', 'G', 'A', 'T')
+    #print(''.join(nucleobases[int(dna[x*2:x*2+2],2)] for x in range(len(dna)//2)))
     #test_entity = Entity(dna)
     # for x in range(10):
     # test_entity.update()
     # print(test_entity.position)
     # for neuron in test_entity.neurons:
     #     print(neuron.output)
-
-    print('dna sequencing started')
-    data = decode_dna(dna)
-    print('dna sequencing finished')
-    print(dna)
-    print(encode_dna(data))
-    print(dna == encode_dna(data))
+    # print(dna)
+    # print(encode_dna(data))
+    #print(dna == encode_dna(data))
     # print(data['color'])
     # print(convert_to_bits(data['color'][0]))
     # print(convert_to_bits(data['color'][1]))
