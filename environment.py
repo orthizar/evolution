@@ -3,6 +3,7 @@ from typing import Union
 import random
 from entity import *
 from food import *
+import threading
 
 
 class Environment:

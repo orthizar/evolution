@@ -284,7 +284,7 @@ class Entity:
         for neuron in self.neurons:
             neuron.update(self.neurons, self.sensors)
             # print(neuron.output)
-        speed = self.neurons[0].output*5
+        speed = self.neurons[0].output*10
         direction = self.neurons[1].output*2*math.pi
         self.position = ((self.position[0] + speed*math.sin(direction)) % environment.size[0],
                          (self.position[1] + speed*math.cos(direction)) % environment.size[1])
