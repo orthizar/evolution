@@ -56,7 +56,7 @@ class Environment:
             for _ in range(self.food_per_step):
                 self.food.append(
                     Food((random.random()*self.size[0], random.random()*self.size[1])))
-        if len(self.entities) < 1:
+        if len(self.entities) < 5:
             dna = generate_dna(self.number_of_neurons, self.number_of_axons)
             self.entities.append(
                 Entity(dna, self, (random.random()*self.size[0], random.random()*self.size[1])))

@@ -5,6 +5,7 @@ from environment import *
 from datetime import datetime
 import json
 import pygame
+from pygame.locals import *
 from collections import Counter
 #import cv2
 import os
@@ -16,21 +17,21 @@ from operator import attrgetter
 env = None
 step = 0
 
-entities = 1
+entities = 5
 mutation_rate = 10
 initial_food = 100
 food_per_step = 20
 
-number_of_neurons = 10
-number_of_axons = 5
+number_of_neurons = 16
+number_of_axons = 16
 
 
-num_axs = 4
+num_axs = 6
 
 pygame.init()
 
-SCREEN_WIDTH = 640
-SCREEN_HEIGHT = 480
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
 screen = pygame.display.set_mode(
     [SCREEN_WIDTH, SCREEN_HEIGHT], pygame.DOUBLEBUF)
 
@@ -149,7 +150,7 @@ if __name__ == '__main__':
             #break
     #old_video.release()
     #os.remove(f"{video_path}.bak")
-    init_graph(num_axs)
+    init_graph(num_axs, SCREEN_WIDTH//3, SCREEN_HEIGHT//3)
 
     while running:
         for event in pygame.event.get():
@@ -171,6 +172,11 @@ if __name__ == '__main__':
             f"Generations:",
             *generations
         ])
+        if step % 1 == 0:
+            visualize_network(num_axs)
+            buffer, size = render_canvas()
+            surf = pygame.image.frombuffer(buffer, size, "RGBA")
+            screen.blit(surf, (((SCREEN_WIDTH//3)*2,(SCREEN_HEIGHT//3)*2)))
         pygame.display.flip()
 
         if step % 10 == 0:
@@ -179,9 +185,8 @@ if __name__ == '__main__':
                 map(lambda x: sum(map(lambda y: len(y.axons), x.neurons)), env.entities))
             generations = list(f" Gen {generation}: {number}" for generation, number in Counter(
                 [d.generation for d in env.entities]).items())
-        if step % 1 == 0:
-            visualize_network(num_axs)
-            
+        
+
 
             
         #videowriter.write(pygame.surfarray.pixels3d(screen).swapaxes(1, 0).copy())
