@@ -11,6 +11,7 @@ import os
 import numpy as np
 import copy
 from visualize import *
+from operator import attrgetter
 
 env = None
 step = 0
@@ -18,7 +19,13 @@ step = 0
 entities = 1
 mutation_rate = 10
 initial_food = 100
-food_per_step = 100
+food_per_step = 20
+
+number_of_neurons = 10
+number_of_axons = 5
+
+
+num_axs = 4
 
 pygame.init()
 
@@ -69,9 +76,9 @@ def dump_save(save_path):
 
 def create_env():
     env = Environment(size=pygame.display.get_surface().get_size(), entities=[],
-                      food=[], ray_stop=0.1, ray_steps=10, mutation_rate=mutation_rate, food_per_step=food_per_step)
+                      food=[], ray_stop=0.1, ray_steps=10, mutation_rate=mutation_rate, food_per_step=food_per_step, number_of_neurons=number_of_neurons, number_of_axons=number_of_axons)
     for _ in range(entities):
-        dna = generate_dna(32, 64)
+        dna = generate_dna(number_of_neurons, number_of_axons)
         env.entities.append(
             Entity(dna, env, (random.random()*env.size[0], random.random()*env.size[1])))
     for _ in range(initial_food):
@@ -98,7 +105,24 @@ def draw_information(screen, text_array):
         text_surface = font.render(text, True, (255, 255, 255))
         screen.blit(text_surface, (0, i*12))
 
+def visualize_network(num_axs):
+    for idx in range(min(num_axs, len(env.entities))):
+        axons_visualize = []
+        axon_activations = []
+        node_activations = []
+        entity = env.entities[idx]
+        for neuron in entity.neurons:
+            node_activations.append(neuron.output)
+            for axon in neuron.axons:
+                if axon['target_type'] == 'interneuron':
+                    axons_visualize.append((entity.neurons.index(neuron), axon['target_index']%len(entity.neurons)))
+                    axon_activations.append(entity.neurons[axon['target_index'] %
+                                    len(entity.neurons)].output * axon['weight'])
 
+        graph = create_graph(axons_visualize)
+        render_graph(idx, graph, axon_activations, node_activations, f"G: {entity.generation}, L: {entity.lifetime}")
+    if min(num_axs, len(env.entities)) < num_axs:
+        clear_axs(range(len(env.entities),num_axs))
 if __name__ == '__main__':
     if len(sys.argv) >= 2:
         save_path = sys.argv[1]
@@ -113,13 +137,6 @@ if __name__ == '__main__':
         map(lambda x: sum(map(lambda y: len(y.axons), x.neurons)), env.entities))
     generations = list(f" Gen {generation}: {number}" for generation, number in Counter(
         [d.generation for d in env.entities]).items())
-
-    axons_visualize = []
-    for neuron in env.entities[0].neurons:
-        axons_visualize += [(env.entities[0].neurons.index(neuron), x['target_index']%len(env.entities[0].neurons)) for x in neuron.axons]
-
-    graph = create_graph(axons_visualize)
-    render_graph(graph)
     #os.rename(video_path, f"{video_path}.bak")
     #fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     #videowriter = cv2.VideoWriter(video_path, fourcc, 24, env.size)
@@ -132,6 +149,8 @@ if __name__ == '__main__':
             #break
     #old_video.release()
     #os.remove(f"{video_path}.bak")
+    init_graph(num_axs)
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -153,12 +172,18 @@ if __name__ == '__main__':
             *generations
         ])
         pygame.display.flip()
+
         if step % 10 == 0:
             neurons = sum(map(lambda x: len(x.neurons), env.entities))
             axons = sum(
                 map(lambda x: sum(map(lambda y: len(y.axons), x.neurons)), env.entities))
             generations = list(f" Gen {generation}: {number}" for generation, number in Counter(
                 [d.generation for d in env.entities]).items())
+        if step % 1 == 0:
+            visualize_network(num_axs)
+            
+
+            
         #videowriter.write(pygame.surfarray.pixels3d(screen).swapaxes(1, 0).copy())
         if step % 100 == 0:
             dump_save(save_path)

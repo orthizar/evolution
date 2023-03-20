@@ -5,9 +5,8 @@ from entity import *
 from food import *
 import threading
 
-
 class Environment:
-    def __init__(self, size=(1000, 1000), entities=[], food=[], ray_stop=0.01, ray_steps=100, mutation_rate=10, food_per_step=100) -> None:
+    def __init__(self, size=(1000, 1000), entities=[], food=[], ray_stop=0.01, ray_steps=100, mutation_rate=10, food_per_step=100, number_of_neurons=1, number_of_axons=1) -> None:
         self.size = size
         self.entities = entities
         self.food = food
@@ -15,6 +14,8 @@ class Environment:
         self.ray_steps = ray_steps
         self.mutation_rate = mutation_rate
         self.food_per_step = food_per_step
+        self.number_of_neurons = number_of_neurons
+        self.number_of_axons = number_of_axons
 
     def cast(self, start, angle, ray_range) -> Union[None, float]:
         ray_position = start
@@ -56,7 +57,7 @@ class Environment:
                 self.food.append(
                     Food((random.random()*self.size[0], random.random()*self.size[1])))
         if len(self.entities) < 1:
-            dna = generate_dna(512, 128)
+            dna = generate_dna(self.number_of_neurons, self.number_of_axons)
             self.entities.append(
                 Entity(dna, self, (random.random()*self.size[0], random.random()*self.size[1])))
         threads = []
